@@ -31,7 +31,8 @@ def single_task(ocr: OCR, position: WindowPosition, config: excel_reader.Config)
     moveTo(pos.add(window_pos).as_tuple())
 
     sleep(0.2)
-    pos = ocr.capture(box.add_offset(offset)).get_txt_pos("SSH连接(Linux)")
+    text_list = ["SSH连接(Linux)", "SSH连接（Linux)","SSH连接(Linux）","SSH连接（Linux）"]
+    pos = ocr.capture(box.add_offset(offset)).get_txt_one_of_list_pos(text_list)
     moveTo(pos.add(window_pos).as_tuple())
     click()
 
@@ -40,7 +41,6 @@ def single_task(ocr: OCR, position: WindowPosition, config: excel_reader.Config)
 
     manager.call_window("新建连接")
     box = get_windows_pos(manager.handle, position)
-    print(box.region)
     window_pos = box.position()
 
     fix_input_offset = Position(position.handle_single_attr(150), position.handle_single_attr(10))
