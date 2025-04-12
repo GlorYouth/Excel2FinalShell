@@ -15,75 +15,107 @@ def get_windows_pos(_handle, window_position: WindowPosition):
     # 根据缩放比修正窗口坐标
     return window_position.handle_rect(origin_window_rect)
 
-def single_task(ocr: OCR, position: WindowPosition, config: excel_reader.Config):
-    manager = WindowManager()
+class History:
+    def __init__(self):
+        return
 
-    manager.call_window("连接管理器")
-    box = get_windows_pos(manager.handle, position)
-    window_pos = box.position()
-
-    pos = ocr.capture(box).get_txt_pos("新建文件夹")
-    moveTo(pos.add(window_pos).as_tuple())
-    rightClick()
-
-    offset = ([0, 0, 0, position.handle_single_attr(150)])
-    pos = ocr.capture(box.add_offset(offset)).get_txt_pos("新建")
-    moveTo(pos.add(window_pos).as_tuple())
-
-    sleep(0.2)
-    text_list = ["SSH连接(Linux)", "SSH连接（Linux)","SSH连接(Linux）","SSH连接（Linux）"]
-    pos = ocr.capture(box.add_offset(offset)).get_txt_one_of_list_pos(text_list)
-    moveTo(pos.add(window_pos).as_tuple())
-    click()
-
-    manager.unset_window_foreground()
-    sleep(0.2)
-
-    manager.call_window("新建连接")
-    box = get_windows_pos(manager.handle, position)
-    window_pos = box.position()
-
-    fix_input_offset = Position(position.handle_single_attr(150), position.handle_single_attr(10))
-
-    text_list = ["名称：", "主机：", "端口：", "用户名：", "密码：", "确定"]
-    pos_list = [p.add(window_pos) for p in ocr.capture(box).get_txt_list_pos(text_list)]
-    pos = pos_list[0].add(fix_input_offset).as_tuple()
-    click(x=pos[0],y=pos[1])
-    write(config.name)
-
-    pos = pos_list[1].add(fix_input_offset).as_tuple()
-    click(x=pos[0],y=pos[1])
-    write(config.host)
-
-    pos = pos_list[2].add(fix_input_offset).as_tuple()
-    click(x=pos[0],y=pos[1])
-    write(str(config.port))
-
-    pos = pos_list[3].add(fix_input_offset).as_tuple()
-    click(x=pos[0],y=pos[1])
-    write(config.username)
-
-    pos = pos_list[4].add(fix_input_offset).as_tuple()
-    click(x=pos[0],y=pos[1])
-    write(config.password)
-
-    pos = pos_list[5].as_tuple()
-    click(x=pos[0],y=pos[1])
+class Excel2FinalShell:
+    def __init__(self, is_cached: bool, fold_name: str):
+        self.manager = WindowManager()
+        self.position = WindowPosition()
+        self.is_cached = is_cached
+        self.fold_name = fold_name
+        self.ocr = OCR()
+        self.history = None
 
 
-def start(path: str):
-    ocr = OCR()
-    position = WindowPosition()
+    def single_task(self, config: excel_reader.Config):
+        self.manager.call_window("连接管理器")
+
+        is_finished = True
+        if not self.is_cached or self.history is None:
+            is_finished = False
+            self.history = History()
+
+            self.history.manager_box = get_windows_pos(self.manager.handle, self.position)
+            self.history.manager_window_pos = self.history.manager_box.position()
+
+            self.history.new_fold_pos = self.ocr.capture(self.history.manager_box).get_txt_pos(self.fold_name)
+
+        moveTo(self.history.new_fold_pos.add(self.history.manager_window_pos).as_tuple())
+        rightClick()
+
+        if not self.is_cached or not is_finished:
+            self.history.offset = ([0, 0, 0, self.position.handle_single_attr(self.history.new_fold_pos.y)])
+            self.history.xinjian_pos = self.ocr.capture(
+                self.history.manager_box.add_offset(self.history.offset)).get_txt_pos("新建")
+            exit(-1)
+        moveTo(self.history.xinjian_pos.add(self.history.manager_window_pos).as_tuple())
+        sleep(0.2)
+        if not self.is_cached or not is_finished:
+            text_list = ["SSH连接(Linux)", "SSH连接（Linux)", "SSH连接(Linux）", "SSH连接（Linux）"]
+            self.history.ssh_connect_pos = self.ocr.capture(
+                self.history.manager_box.add_offset(self.history.offset)).get_txt_pos(text_list)
+        moveTo(self.history.ssh_connect_pos.add(self.history.manager_window_pos).as_tuple())
+        click()
+        self.manager.unset_window_foreground()
+        sleep(0.2)
+
+        self.manager.call_window("新建连接")
+        if not self.is_cached or not is_finished:
+            self.history.connection_box = get_windows_pos(self.manager.handle, self.position)
+            self.history.connection_window_pos = self.history.connection_box.position()
+            self.history.fix_input_offset = Position(self.position.handle_single_attr(150), self.position.handle_single_attr(10))
+            text_list = [["名称：", "名称", "名称:"], ["主机：", "主机", "主机:"], ["端口：", "端口", "端口:"],
+                     ["用户名：", "用户名", "用户名:"], ["密码：", "密码", "密码:"], "确定"]
+            self.history.pos_list = []
+            is_find = False
+            self.history.result_list = self.ocr.capture(self.history.connection_box).get_txt_list_pos(text_list)
+            for (s, pos) in self.history.result_list:
+                if len(text_list) + 1 == len(self.history.result_list) and s == "密码" and not is_find:
+                    is_find = True
+                    continue
+                self.history.pos_list.append(pos.add(self.history.connection_window_pos))
+
+            if len(self.history.pos_list) == len(text_list) + 1:
+                self.history.pos_list.remove(("密码", any))
+        pos = self.history.pos_list[0].add(self.history.fix_input_offset).as_tuple()
+        click(x=pos[0], y=pos[1])
+        write(config.name)
+
+        pos = self.history.pos_list[1].add(self.history.fix_input_offset).as_tuple()
+        click(x=pos[0], y=pos[1])
+        write(config.host)
+
+        pos = self.history.pos_list[2].add(self.history.fix_input_offset).as_tuple()
+        click(x=pos[0], y=pos[1])
+        write(str(config.port))
+
+        pos = self.history.pos_list[3].add(self.history.fix_input_offset).as_tuple()
+        click(x=pos[0], y=pos[1])
+        write(config.username)
+
+        pos = self.history.pos_list[4].add(self.history.fix_input_offset).as_tuple()
+        click(x=pos[0], y=pos[1])
+        write(config.password)
+
+        pos = self.history.pos_list[5].as_tuple()
+        click(x=pos[0], y=pos[1])
+
+
+def start(path: str, is_cache: bool, fold_name: str):
+    handle = Excel2FinalShell(is_cached=is_cache, fold_name=fold_name)
     reader = excel_reader.ExcelReader(path)
     while True:
         config = reader.read()
         if config is None:
             reader.close()
             return
-        single_task(ocr, position, config)
+        handle.single_task(config)
 
 import sys
-from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QListWidget, QVBoxLayout, QWidget, QLabel
+from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QListWidget, QVBoxLayout, QWidget, QLabel, \
+    QCheckBox, QLineEdit
 from PySide6.QtCore import Qt
 
 class FileDragDropWindow(QMainWindow):
@@ -112,6 +144,18 @@ class FileDragDropWindow(QMainWindow):
         # 显示文件列表的控件
         self.list_widget = QListWidget()
         self.layout.addWidget(self.list_widget)
+
+        self.folder_label = QLabel("添加到连接管理器的哪个文件夹内(需要能直接看到)：")
+        self.layout.addWidget(self.folder_label)
+
+        self.folder_input = QLineEdit()
+        self.folder_input.setText("新建文件夹")  # 设置默认值
+        self.layout.addWidget(self.folder_input)
+
+        # 增加复选框，确定是否缓存位置信息
+        self.cache_checkbox = QCheckBox("是否缓存位置信息")
+        self.cache_checkbox.setChecked(True)
+        self.layout.addWidget(self.cache_checkbox)
 
         # “开始运行”按钮
         self.start_button = QPushButton("开始运行")
@@ -144,10 +188,7 @@ class FileDragDropWindow(QMainWindow):
 
     # 点击“开始运行”按钮后执行的操作
     def start_running(self):
-        # 示例逻辑：在控制台中打印拖入文件的列表
-        start(self.excel_path)
-
-        # 此处可以添加进一步处理拖入文件的逻辑
+        start(self.excel_path,self.cache_checkbox.isChecked(),self.folder_input.text())
 
 # 重写 keyPressEvent 方法监听键盘事件，检测 ESC 键
     def keyPressEvent(self, event):
