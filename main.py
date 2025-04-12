@@ -45,27 +45,29 @@ def single_task(ocr: OCR, position: WindowPosition, config: excel_reader.Config)
 
     fix_input_offset = Position(position.handle_single_attr(150), position.handle_single_attr(10))
 
-    pos = ocr.capture(box).get_txt_pos("名称：").add(window_pos).add(fix_input_offset).as_tuple()
+    text_list = ["名称：", "主机：", "端口：", "用户名：", "密码：", "确定"]
+    pos_list = [p.add(window_pos) for p in ocr.capture(box).get_txt_list_pos(text_list)]
+    pos = pos_list[0].add(fix_input_offset).as_tuple()
     click(x=pos[0],y=pos[1])
     write(config.name)
 
-    pos = ocr.capture(box).get_txt_pos("主机：").add(window_pos).add(fix_input_offset).as_tuple()
+    pos = pos_list[1].add(fix_input_offset).as_tuple()
     click(x=pos[0],y=pos[1])
     write(config.host)
 
-    pos = ocr.capture(box).get_txt_pos("端口：").add(window_pos).add(fix_input_offset).as_tuple()
+    pos = pos_list[2].add(fix_input_offset).as_tuple()
     click(x=pos[0],y=pos[1])
     write(str(config.port))
 
-    pos = ocr.capture(box).get_txt_pos("用户名：").add(window_pos).add(fix_input_offset).as_tuple()
+    pos = pos_list[3].add(fix_input_offset).as_tuple()
     click(x=pos[0],y=pos[1])
     write(config.username)
 
-    pos = ocr.capture(box).get_txt_pos("密码：").add(window_pos).add(fix_input_offset).as_tuple()
+    pos = pos_list[4].add(fix_input_offset).as_tuple()
     click(x=pos[0],y=pos[1])
     write(config.password)
 
-    pos = ocr.capture(box).get_txt_pos("确定").add(window_pos).as_tuple()
+    pos = pos_list[5].as_tuple()
     click(x=pos[0],y=pos[1])
 
 
