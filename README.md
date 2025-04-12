@@ -1,0 +1,2 @@
+# Excel2FinalShell
+一个自动将excel中ssh配置批量导入finalshell的脚本
