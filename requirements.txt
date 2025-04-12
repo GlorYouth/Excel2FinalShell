@@ -1,0 +1,8 @@
+openpyxl==3.1.5
+paddleocr==2.10.0
+paddlepaddle==3.0.0
+Pillow==11.1.0
+pyautogui==0.9.54
+pywin32==310
+setuptools==75.8.0
+pyside6==6.9.0
